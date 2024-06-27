@@ -5,12 +5,11 @@ import java.util.concurrent.Semaphore;
 public class GroceryQueue {
     private final int maxLength;
     private final Queue<Customer> queue;
-    private final Semaphore queueSemaphore;
+    private final Semaphore queueSemaphore = new Semaphore(1);
 
     public GroceryQueue(int maxLength) {
         this.maxLength = maxLength;
         this.queue = new LinkedList<>();
-        this.queueSemaphore = new Semaphore(1);
     }
 
     public boolean addCustomer(Customer customer) {
@@ -42,14 +41,6 @@ public class GroceryQueue {
     }
 
     public int getSize() {
-        try {
-            queueSemaphore.acquire();
-            return queue.size();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return -1;
-        } finally {
-            queueSemaphore.release();
-        }
+        return queue.size();
     }
 }
