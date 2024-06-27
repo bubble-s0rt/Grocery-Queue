@@ -36,19 +36,18 @@ public class QueueSimulator {
             int arrivalTime = (int) (System.currentTimeMillis() / 1000);
             int serviceTime = random.nextInt(241) + 60; // 60 to 300 simulated seconds
             Customer customer = new Customer(arrivalTime, serviceTime);
-            if (groceryQueues.addCustomer(customer)) {
+            try {
+                customerCountSemaphore.acquire();
+                totalCustomersGroceryQueues++;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                customerCountSemaphore.release();
+            }
+            if (!groceryQueues.addCustomer(customer)) {
+                // Simulate waiting for up to 10 simulated minutes (10 * scaleFactor seconds)
                 try {
-                    customerCountSemaphore.acquire();
-                    totalCustomersGroceryQueues++;
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    customerCountSemaphore.release();
-                }
-            } else {
-                // Simulate waiting for up to 10 seconds
-                try {
-                    TimeUnit.MILLISECONDS.sleep(10 * scaleFactor);
+                    TimeUnit.MILLISECONDS.sleep(600 * scaleFactor);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -78,18 +77,11 @@ public class QueueSimulator {
                     try {
                         serviceTimeSemaphore.acquire();
                         totalServiceTimeGroceryQueues += customer.getServiceTime();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    } finally {
-                        serviceTimeSemaphore.release();
-                    }
-                    try {
-                        customerCountSemaphore.acquire();
                         customersServedGroceryQueues++;
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     } finally {
-                        customerCountSemaphore.release();
+                        serviceTimeSemaphore.release();
                     }
                 }
             }, 0, 1, TimeUnit.MILLISECONDS);
@@ -109,6 +101,10 @@ public class QueueSimulator {
         System.out.println("Total customers left without being served: " + customersLeftGroceryQueues);
         System.out.println("Average service time: " + (customersServedGroceryQueues > 0 ? (totalServiceTimeGroceryQueues / customersServedGroceryQueues) / 60 : 0) + " minutes");
         System.out.println("Total simulation time: " + simulationTime + " minutes");
+
+        // Validate results
+        int calculatedLeftCustomers = totalCustomersGroceryQueues - customersServedGroceryQueues;
+        System.out.println("Calculated customers left without being served : " + calculatedLeftCustomers);
     }
 
     public static void main(String[] args) {
