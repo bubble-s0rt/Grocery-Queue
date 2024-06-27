@@ -2,6 +2,7 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Semaphore;
 
 public class QueueSimulator {
     private final int simulationTime;
@@ -13,6 +14,9 @@ public class QueueSimulator {
 
     private final Random random;
     private final int scaleFactor = 10;
+
+    private final Semaphore customerCountSemaphore = new Semaphore(1);
+    private final Semaphore serviceTimeSemaphore = new Semaphore(1);
 
     public QueueSimulator(int simulationTime, int numberOfCashiers, int groceryQueueMaxLength) {
         this.simulationTime = simulationTime;
@@ -33,7 +37,14 @@ public class QueueSimulator {
             int serviceTime = random.nextInt(241) + 60; // 60 to 300 simulated seconds
             Customer customer = new Customer(arrivalTime, serviceTime);
             if (groceryQueues.addCustomer(customer)) {
-                totalCustomersGroceryQueues++;
+                try {
+                    customerCountSemaphore.acquire();
+                    totalCustomersGroceryQueues++;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    customerCountSemaphore.release();
+                }
             } else {
                 // Simulate waiting for up to 10 seconds
                 try {
@@ -42,7 +53,14 @@ public class QueueSimulator {
                     Thread.currentThread().interrupt();
                 }
                 if (!groceryQueues.addCustomer(customer)) {
-                    customersLeftGroceryQueues++;
+                    try {
+                        customerCountSemaphore.acquire();
+                        customersLeftGroceryQueues++;
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        customerCountSemaphore.release();
+                    }
                 }
             }
         }, 0, (random.nextInt(41) + 20) * scaleFactor, TimeUnit.MILLISECONDS); // Scaled to 20 to 60 milliseconds
@@ -57,8 +75,22 @@ public class QueueSimulator {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    totalServiceTimeGroceryQueues += customer.getServiceTime();
-                    customersServedGroceryQueues++;
+                    try {
+                        serviceTimeSemaphore.acquire();
+                        totalServiceTimeGroceryQueues += customer.getServiceTime();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        serviceTimeSemaphore.release();
+                    }
+                    try {
+                        customerCountSemaphore.acquire();
+                        customersServedGroceryQueues++;
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        customerCountSemaphore.release();
+                    }
                 }
             }, 0, 1, TimeUnit.MILLISECONDS);
         }
