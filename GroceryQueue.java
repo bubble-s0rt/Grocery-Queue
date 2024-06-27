@@ -1,49 +1,28 @@
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class GroceryQueue {
-    private final int maxQueueLength;
+    private final int maxLength;
     private final Queue<Customer> queue;
-    private final Lock queueLock;
 
-    public GroceryQueue(int maxQueueLength) {
-        this.maxQueueLength = maxQueueLength;
+    public GroceryQueue(int maxLength) {
+        this.maxLength = maxLength;
         this.queue = new LinkedList<>();
-        this.queueLock = new ReentrantLock();
     }
 
     public boolean addCustomer(Customer customer) {
-        queueLock.lock();
-        try {
-            if (queue.size() < maxQueueLength) {
-                queue.add(customer);
-                return true;
-            } else {
-                customer.setServed(false);
-                return false;
-            }
-        } finally {
-            queueLock.unlock();
+        if (queue.size() < maxLength) {
+            queue.offer(customer);
+            return true;
         }
+        return false;
     }
 
     public Customer getNextCustomer() {
-        queueLock.lock();
-        try {
-            return queue.poll();
-        } finally {
-            queueLock.unlock();
-        }
+        return queue.poll();
     }
 
-    public int getQueueSize() {
-        queueLock.lock();
-        try {
-            return queue.size();
-        } finally {
-            queueLock.unlock();
-        }
+    public int getSize() {
+        return queue.size();
     }
 }
